@@ -58,15 +58,15 @@ func SerPost(r http.ResponseWriter, w *http.Request) {
 
 	_, err := buf.ReadFrom(w.Body)
 	if err != nil {
-		http.Error(r, err.Error(), http.StatusInternalServerError)
+		http.Error(r, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
-		http.Error(r, err.Error(), http.StatusInternalServerError)
+		http.Error(r, err.Error(), http.StatusBadRequest)
 		return
 	}
 	r.Header().Set("Content-Type", "application/json")
-	r.WriteHeader(http.StatusOK)
+	r.WriteHeader(http.StatusCreated)
 }
 func searchID(r http.ResponseWriter, w *http.Request) {
 	id := chi.URLParam(w, "id")
@@ -78,7 +78,7 @@ func searchID(r http.ResponseWriter, w *http.Request) {
 	}
 	resp, err := json.Marshal(artist)
 	if err != nil {
-		http.Error(r, err.Error(), http.StatusInternalServerError)
+		http.Error(r, err.Error(), http.StatusBadRequest)
 		return
 	}
 	r.Header().Set("Content-Type", "application/json")
