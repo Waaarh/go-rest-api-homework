@@ -42,74 +42,77 @@ var tasks = map[string]Task{
 }
 
 // Ниже напишите обработчики для каждого эндпоинта
-func SerAll(r http.ResponseWriter, w *http.Request) {
+func SerAll(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(tasks)
 	if err != nil {
-		http.Error(r, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	r.Header().Set("Content-Type", "application/json")
-	r.WriteHeader(http.StatusOK)
-	r.Write(resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
 }
-func SerPost(r http.ResponseWriter, w *http.Request) {
+
+func SerPost(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	var buf bytes.Buffer
 
-	_, err := buf.ReadFrom(w.Body)
+	_, err := buf.ReadFrom(r.Body) //
 	if err != nil {
-		http.Error(r, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
-		http.Error(r, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	r.Header().Set("Content-Type", "application/json")
-	r.WriteHeader(http.StatusCreated)
+
+	tasks[task.ID] = task
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(`{"status":"created"}`))
 }
-func searchID(r http.ResponseWriter, w *http.Request) {
-	id := chi.URLParam(w, "id")
+
+func searchID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 
 	artist, ok := tasks[id]
 	if !ok {
-		http.Error(r, "err", http.StatusBadRequest)
+		http.Error(w, "Задача не найдена", http.StatusBadRequest)
 		return
 	}
 	resp, err := json.Marshal(artist)
 	if err != nil {
-		http.Error(r, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	r.Header().Set("Content-Type", "application/json")
-	r.WriteHeader(http.StatusOK)
-	r.Write(resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
 }
-func DelID(r http.ResponseWriter, w *http.Request) {
-	// Извлекаем id из URL: /tasks/{id}
-	id := chi.URLParam(w, "id")
 
-	// Проверяем, существует ли задача с таким id
+func DelID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
 	_, exists := tasks[id]
 	if !exists {
-		http.Error(r, "Задача с таким ID не найдена", http.StatusBadRequest)
+		http.Error(w, "Задача с таким ID не найдена", http.StatusBadRequest)
 		return
 	}
 
-	// Удаляем задачу из мапы
 	delete(tasks, id)
 
-	// Возвращаем статус 200 OK
-	r.WriteHeader(http.StatusOK)
-	fmt.Fprint(r, `{"status": "deleted", "id": "`+id+`"}`)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, `{"status": "deleted", "id": "`+id+`"}`)
 }
+
 func main() {
 	r := chi.NewRouter()
 
-	// здесь регистрируйте ваши обработчики
 	r.Get("/tasks", SerAll)
 	r.Post("/tasks", SerPost)
-	r.Get("/search/{id}", searchID)
+	r.Get("/tasks/{id}", searchID)
 	r.Delete("/tasks/{id}", DelID)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
